@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\TodoStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TodoResource;
+use App\Models\Todo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TodoController extends Controller
 {
@@ -12,7 +16,7 @@ class TodoController extends Controller
      */
     public function index()
     {
-        dd('oke');
+        return TodoResource::collection(Auth::user()->todos()->latest('id')->get());
     }
 
     /**
@@ -20,7 +24,17 @@ class TodoController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $this->validate($request, [
+            'name' => ['required'],
+        ]);
+
+        $todo = Todo::create([
+            'user_id' => Auth::id(),
+            'name' => $request->name,
+            'status' => TodoStatus::TODO->value
+        ]);
+
+        return TodoResource::make($todo);
     }
 
     /**
@@ -34,16 +48,33 @@ class TodoController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Todo $todo)
     {
-        //
+        $this->authorize('update', $todo);
+
+        $this->validate($request, [
+            'name' => ['required']
+        ]);
+
+        $todo->update([
+            'name' => $request->name,
+            'status' => $request->status
+        ]);
+
+        return TodoResource::make($todo);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Todo $todo)
     {
-        //
+        $this->authorize('delete', $todo);
+
+        $todo->delete();
+
+        return response()->json([
+            'success' => 'Todo deleted'
+        ]);
     }
 }
